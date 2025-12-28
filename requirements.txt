@@ -1,0 +1,4 @@
+flask
+gpiozero
+opencv-python-headless
+
