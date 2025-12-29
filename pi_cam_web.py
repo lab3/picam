@@ -60,7 +60,7 @@ def take_photo():
 
 def take_photo_png_logi():
     with cam_lock:
-        ret, frame = cap.read()
+        ret, frame = logicam.read()
         if not ret:
             raise RuntimeError("Failed to capture frame from webcam")
 
