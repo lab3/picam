@@ -25,7 +25,7 @@ app = Flask(__name__)
 # --- Camera setup (single global instance) ---
 #picam2 = Picamera2()
 
-CAMERA_INDEX = 0
+
 logicam = None
 cam_lock = threading.Lock()
 
@@ -48,7 +48,8 @@ def init_camera():
 
     #logitech setup
     global logicam
-    logicam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
+    DEVICE = "/dev/video1"
+    logicam = cv2.VideoCapture(DEVICE, cv2.CAP_V4L2)
     logicam.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     logicam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     logicam.set(cv2.CAP_PROP_FPS, 30)
