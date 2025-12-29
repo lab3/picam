@@ -24,6 +24,18 @@ latest_frame = None
 latest_frame_ts = 0.0
 logicam = None
 stop_event = threading.Event()
+
+def shutdown():
+    stop_event.set()
+    try:
+        if logicam:
+            logicam.release()
+    except Exception:
+        pass
+
+def handle_signal(signum, frame):
+    shutdown()
+
 atexit.register(shutdown)
 signal.signal(signal.SIGTERM, handle_signal)
 signal.signal(signal.SIGINT, handle_signal)
@@ -114,16 +126,6 @@ def init_gpio_button():
 
     gpio_button.when_pressed = on_press
 
-def shutdown():
-    stop_event.set()
-    try:
-        if logicam:
-            logicam.release()
-    except Exception:
-        pass
-
-def handle_signal(signum, frame):
-    shutdown()
 
 # --- Web pages ---
 GALLERY_PAGE = """
