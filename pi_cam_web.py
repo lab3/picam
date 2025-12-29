@@ -2,109 +2,107 @@
 from flask import Flask, send_from_directory, render_template_string, abort, redirect, url_for, request
 from pathlib import Path
 from datetime import datetime
+from gpiozero import Button
+
 import threading
 import time
 import os
 import cv2
-
-from gpiozero import Button
-#from picamera2 import Picamera2
+import atexit
+import signal
 
 PHOTO_DIR = Path("/home/pichess/picam/pics")
 PORT = 8080
 REFRESH_SECONDS = 2
 PNG_COMPRESSION = 3   # 0 = largest/fastest, 9 = smallest/slowest
 BUTTON_GPIO = 17
-JPEG_QUALITY = 95
-SIZE = (3280, 2464)                 # v2 full-res; change to (1640, 1232) if desired
-LOCK_EXPOSURE_AFTER_WARMUP = True   # set False if lighting changes a lot
-
 gpio_button = None
+UVC_DEV = "/dev/video1"   # Logitech C930e
+frame_lock = threading.Lock()
+cam_lock = threading.Lock()
+latest_frame = None
+latest_frame_ts = 0.0
+logicam = None
+stop_event = threading.Event()
+atexit.register(shutdown)
+signal.signal(signal.SIGTERM, handle_signal)
+signal.signal(signal.SIGINT, handle_signal)
+
 app = Flask(__name__)
 
-# --- Camera setup (single global instance) ---
-#picam2 = Picamera2()
-
-
-logicam = None
-cam_lock = threading.Lock()
-
 def init_camera():
-    PHOTO_DIR.mkdir(parents=True, exist_ok=True)
-
-    #picam setup
-    """
-    config = picam2.create_still_configuration(
-        main={"size": SIZE},
-        buffer_count=4
-    )
-    picam2.configure(config)
-    picam2.start()
-    time.sleep(1.0)  # warmup for AE/AWB
-
-    if LOCK_EXPOSURE_AFTER_WARMUP:
-        picam2.set_controls({"AeEnable": False, "AwbEnable": False})
-    """
-
-    #logitech setup
     global logicam
-    DEVICE = "/dev/video1"
-    logicam = cv2.VideoCapture(DEVICE, cv2.CAP_V4L2)
+
+    logicam = cv2.VideoCapture(UVC_DEV, cv2.CAP_V4L2)
+    if not logicam.isOpened():
+        raise RuntimeError(f"Could not open Logitech webcam at {UVC_DEV}")
+
+    # Recommended settings for C930e
+    logicam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     logicam.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     logicam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     logicam.set(cv2.CAP_PROP_FPS, 30)
 
-    if not logicam.isOpened():
-        raise RuntimeError("Could not open USB camera")  
+    # Try to minimize internal buffering (not always honored)
+    logicam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    start_frame_thread()
+
+
+def start_frame_thread():
+    t = threading.Thread(target=_frame_reader_loop, daemon=True)
+    t.start()
+
+def _frame_reader_loop():
+    global latest_frame, latest_frame_ts
+
+    # Warm up camera so first capture isn't stale/blank
+    for _ in range(10):
+        logicam.read()
+
+    while not stop_event.is_set():
+        ret, frame = logicam.read()
+        if ret and frame is not None:
+            with frame_lock:
+                latest_frame = frame
+                latest_frame_ts = time.time()
+        else:
+            time.sleep(0.05)
 
 def take_photo():
     return take_photo_png_logi()
 
+def get_fresh_frame():
+    # Throw away buffered frames
+    DROP_FRAMES = 8  # 5–15 is typical
+    for _ in range(DROP_FRAMES):
+        logicam.grab()          # faster than read(), doesn't decode
+        time.sleep(0.01)    # tiny pause lets the driver deliver new frames
+    ret, frame = cap.read() # this one should be current
+    return ret, frame
+    
 def take_photo_png_logi():
-    with cam_lock:
-        ret, frame = logicam.read()
-        if not ret:
-            raise RuntimeError("Failed to capture frame from webcam")
+    with frame_lock:
+        frame = None if latest_frame is None else latest_frame.copy()
+        age = time.time() - latest_frame_ts
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        fn = PHOTO_DIR / f"{ts}.png"
+    if frame is None:
+        raise RuntimeError("No webcam frame available yet")
 
-        cv2.imwrite(
-            str(fn),
-            frame,
-            [cv2.IMWRITE_PNG_COMPRESSION, PNG_COMPRESSION]
-        )
+    # Optional safety check (prevents saving very stale frames)
+    if age > 1.0:
+        raise RuntimeError(f"Latest frame too old ({age:.2f}s)")
 
-        return fn
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    fn = PHOTO_DIR / f"{ts}.png"
 
-def take_photo_jpg() -> Path:
-    """Capture one JPEG while keeping camera running. Thread-safe."""
-    with cam_lock:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        fn = PHOTO_DIR / f"{ts}.jpg"
-        picam2.options["quality"] = JPEG_QUALITY
-        picam2.capture_file(str(fn))
-        return fn
+    cv2.imwrite(
+        str(fn),
+        frame,
+        [cv2.IMWRITE_PNG_COMPRESSION, PNG_COMPRESSION]
+    )
 
-def take_photo_png():
-    with cam_lock:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        fn = PHOTO_DIR / f"{ts}.png"
-
-        # Capture raw RGB frame
-        frame = picam2.capture_array()
-
-        # Convert RGB -> BGR for OpenCV
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-        # Write PNG (lossless)
-        cv2.imwrite(
-            str(fn),
-            frame_bgr,
-            [cv2.IMWRITE_PNG_COMPRESSION, PNG_COMPRESSION]
-        )
-
-        return fn
+    return fn
 
 def init_gpio_button():
     global gpio_button
@@ -115,6 +113,17 @@ def init_gpio_button():
         threading.Thread(target=lambda: print("Captured:", take_photo()), daemon=True).start()
 
     gpio_button.when_pressed = on_press
+
+def shutdown():
+    stop_event.set()
+    try:
+        if logicam:
+            logicam.release()
+    except Exception:
+        pass
+
+def handle_signal(signum, frame):
+    shutdown()
 
 # --- Web pages ---
 GALLERY_PAGE = """
