@@ -47,6 +47,7 @@ def init_camera():
     """
 
     #logitech setup
+    global logicam
     logicam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
     logicam.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     logicam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
