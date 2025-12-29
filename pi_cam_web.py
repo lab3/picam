@@ -26,8 +26,7 @@ app = Flask(__name__)
 #picam2 = Picamera2()
 
 CAMERA_INDEX = 0
-logicam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
-
+logicam = None
 cam_lock = threading.Lock()
 
 def init_camera():
@@ -46,11 +45,12 @@ def init_camera():
     if LOCK_EXPOSURE_AFTER_WARMUP:
         picam2.set_controls({"AeEnable": False, "AwbEnable": False})
     """
-    
+
     #logitech setup
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-    cap.set(cv2.CAP_PROP_FPS, 30)
+    logicam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
+    logicam.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    logicam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    logicam.set(cv2.CAP_PROP_FPS, 30)
 
     if not cap.isOpened():
         raise RuntimeError("Could not open USB camera")  
