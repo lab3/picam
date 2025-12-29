@@ -24,11 +24,16 @@ app = Flask(__name__)
 
 # --- Camera setup (single global instance) ---
 picam2 = Picamera2()
+
+CAMERA_INDEX = 0
+logicam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
+
 cam_lock = threading.Lock()
 
 def init_camera():
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 
+    #picam setup
     config = picam2.create_still_configuration(
         main={"size": SIZE},
         buffer_count=4
@@ -40,8 +45,33 @@ def init_camera():
     if LOCK_EXPOSURE_AFTER_WARMUP:
         picam2.set_controls({"AeEnable": False, "AwbEnable": False})
 
+    #logitech setup
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
+    if not cap.isOpened():
+        raise RuntimeError("Could not open USB camera")  
+
 def take_photo():
-    return take_photo_jpg()
+    return take_photo_png_logi()
+
+def take_photo_png_logi():
+    with cam_lock:
+        ret, frame = cap.read()
+        if not ret:
+            raise RuntimeError("Failed to capture frame from webcam")
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        fn = PHOTO_DIR / f"{ts}.png"
+
+        cv2.imwrite(
+            str(fn),
+            frame,
+            [cv2.IMWRITE_PNG_COMPRESSION, PNG_COMPRESSION]
+        )
+
+        return fn
 
 def take_photo_jpg() -> Path:
     """Capture one JPEG while keeping camera running. Thread-safe."""
