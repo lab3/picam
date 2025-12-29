@@ -52,7 +52,7 @@ def init_camera():
     logicam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     logicam.set(cv2.CAP_PROP_FPS, 30)
 
-    if not cap.isOpened():
+    if not logicam.isOpened():
         raise RuntimeError("Could not open USB camera")  
 
 def take_photo():
