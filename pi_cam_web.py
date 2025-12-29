@@ -8,7 +8,7 @@ import os
 import cv2
 
 from gpiozero import Button
-from picamera2 import Picamera2
+#from picamera2 import Picamera2
 
 PHOTO_DIR = Path("/home/pichess/picam/pics")
 PORT = 8080
@@ -23,7 +23,7 @@ gpio_button = None
 app = Flask(__name__)
 
 # --- Camera setup (single global instance) ---
-picam2 = Picamera2()
+#picam2 = Picamera2()
 
 CAMERA_INDEX = 0
 logicam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_V4L2)
@@ -34,6 +34,7 @@ def init_camera():
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 
     #picam setup
+    """
     config = picam2.create_still_configuration(
         main={"size": SIZE},
         buffer_count=4
@@ -44,7 +45,8 @@ def init_camera():
 
     if LOCK_EXPOSURE_AFTER_WARMUP:
         picam2.set_controls({"AeEnable": False, "AwbEnable": False})
-
+    """
+    
     #logitech setup
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
