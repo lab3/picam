@@ -42,6 +42,10 @@ signal.signal(signal.SIGINT, handle_signal)
 
 app = Flask(__name__)
 
+# Reduce noisy per-request logs
+import logging
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
 def init_camera():
     global logicam
 
