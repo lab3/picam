@@ -17,7 +17,7 @@ REFRESH_SECONDS = 2
 PNG_COMPRESSION = 3   # 0 = largest/fastest, 9 = smallest/slowest
 BUTTON_GPIO = 17
 gpio_button = None
-UVC_DEV = "/dev/video1"   # Logitech C930e
+UVC_DEV = "/dev/v4l/by-id/usb-046d_Logitech_Webcam_C930e_551969FE-video-index0"   # Logitech C930e
 frame_lock = threading.Lock()
 cam_lock = threading.Lock()
 latest_frame = None
