@@ -107,12 +107,15 @@ def take_photo_png_logi():
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     fn = PHOTO_DIR / f"{ts}.png"
+    tmp = PHOTO_DIR / f"{ts}.png.tmp"
 
     cv2.imwrite(
-        str(fn),
+        str(tmp),
         frame,
         [cv2.IMWRITE_PNG_COMPRESSION, PNG_COMPRESSION]
     )
+
+    os.replace(tmp, fn)  # atomic rename
 
     return fn
 
