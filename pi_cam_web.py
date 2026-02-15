@@ -140,7 +140,7 @@ GALLERY_PAGE = """
   <style>
     body { font-family: sans-serif; margin: 16px; }
     .top { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .btn { padding:10px 14px; border:1px solid #ccc; border-radius:12px; background:#f7f7f7; cursor:pointer; }
+    .btn { padding:10px 14px; border:1px solid #ccc; border-radius:12px; background:#f7f7f7; cursor:pointer; color:#000; }
     .grid { margin-top:14px; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
     img { width:100%; height:auto; border-radius:12px; }
     a { text-decoration:none; color:inherit; }
@@ -154,6 +154,7 @@ GALLERY_PAGE = """
     border-radius: 10px;
     background: #fff5f5;
     cursor: pointer;
+    color: #000;
   }
   </style>
 
