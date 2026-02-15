@@ -107,7 +107,7 @@ def take_photo_png_logi():
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     fn = PHOTO_DIR / f"{ts}.png"
-    tmp = PHOTO_DIR / f"{ts}.png.tmp"
+    tmp = PHOTO_DIR / f"{ts}.tmp.png"
 
     cv2.imwrite(
         str(tmp),
